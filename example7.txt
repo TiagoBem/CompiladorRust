@@ -1,0 +1,12 @@
+fn main () {
+	let x = 2;
+	let y = 4;
+	if y > x {
+		let w = x * y;
+		let r = 8;
+	}
+	while y > x {
+		let w = w / x;
+		let y = y - x;
+	}
+}
