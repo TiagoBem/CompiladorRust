@@ -6,8 +6,9 @@
 #include "parser.h"
 
 int regist=0;
+char buffer[12];
+
 char* create_register(){
-    char buffer[12];
     sprintf(buffer,"%s%d","t",regist);
     char* var = buffer;
     regist++;
@@ -17,7 +18,7 @@ char* create_register(){
 List_Instr* compile_cmdlist(CmdList* cmd_list);
 List_Instr* compile_BoolExpr(BoolExpr* boolexpr);
 List_Instr* compile_Cmd(Cmd* cmd);
-List_Instr* compile_Expr(Expr* expr);
+List_Instr* compile_Expr(Expr* expr,char* r);
 
 Atom* mkAtomInt(int n) {
     Atom* node = (Atom*) malloc(sizeof(Atom));
@@ -171,31 +172,28 @@ List_Instr* compile_Cmd(Cmd* cmd) {
     return node;
 }*/
 
-List_Instr* compile_Expr(Expr* expr) {
+List_Instr* compile_Expr(Expr* expr, char* r) {
     List_Instr* node = (List_Instr*) malloc(sizeof(List_Instr));
-    char* r = create_register();
+    char* r1;
+    char* r2;
+    printf("%s\n",r);
     switch(expr->kind){
         case E_INTEGER:
-            node = mkList(mkInstrOneAtom(NUM,expr->attr.var,mkAtomInt(expr->attr.value)),NULL);
+            node = mkList(mkInstrOneAtom(NUM,r,mkAtomInt(expr->attr.value)),NULL);
             break;
         case E_VAR:
-            node = mkList(mkInstrOneAtom(VARIAB,expr->attr.var,mkAtomChar(expr->attr.var)),NULL);
+            node = mkList(mkInstrOneAtom(VARIAB,r,mkAtomChar(expr->attr.var)),NULL);
             break;
         case E_OPERATION:
-            node = compile_Expr(expr->attr.op.left);
-            List_Instr* temp = node;
-            char* r1;
-            while(temp->tail!=NULL){
-                temp = temp->tail; 
-            }
-            r1 = temp->head->args._one_var.atom->var;
-            node = append(node, compile_Expr(expr->attr.op.right));
-            temp = node;
-            char* r2;
-            while(temp->tail!=NULL){
-                temp = temp->tail;
-            }
-            r2 = temp->head->args._one_var.atom->var;
+            r1 = create_register();
+            //printf("left %d\n",expr->attr.op.left->attr.value);
+            node = compile_Expr(expr->attr.op.left,r1);
+            r2 = create_register();
+            //printf("right %d\n",expr->attr.op.right->attr.value);
+            node = append(node, compile_Expr(expr->attr.op.right,r2));
+            printf("reg %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.var);
+            printf("val atom1 %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.atom1->var);
+            printf("val atom2 %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.atom2->var);
             switch(expr->attr.op.operator){
                 case PLUS:
                     node = append(node, mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
@@ -211,22 +209,34 @@ List_Instr* compile_Expr(Expr* expr) {
                     break;
             }
     }
+    printf("registo var  %s\n",node->head->args._two_var.var);
+    if(node->head->args._two_var.atom1 != NULL)
+        printf("registo atom1 %d\n",node->head->args._two_var.atom1->num);
+    if(node->head->args._two_var.atom2 != NULL)
+        printf("registo atom2 %d\n",node->head->args._two_var.atom2->num);
     return node;
 }
 
 
 void printInstr(Instr* inst){
+    //printf("%d\n",inst->kind);
   switch(inst->kind){
     case NUM:
-        printf("NUM");
-        printf(" %d\n", inst->args._one_var.atom->num);
+        //printf("NUM");
+        printf("%s",inst->args._two_var.var);
+        printf(" := %d\n", inst->args._one_var.atom->num);
     break;
     case VARIAB:
-        printf("VARIAB");
-        printf(" %s\n", inst->args._one_var.atom->var);
+        //printf("VARIAB");
+        printf("%s\n", inst->args._one_var.var);
+        printf(" := %s\n", inst->args._one_var.atom->var);
         break;
     case ADI:
-        printf("ADI\n");
+        //printf("ADI\n");
+        //printf("%d\n",inst->args._two_var.atom1->num);
+        //printf("%d\n",inst->args._two_var.atom2->num);
+        printf("%s",inst->args._two_var.var);
+        printf(" := %s + %s\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case SUB:
         printf("SUB\n");
@@ -278,12 +288,14 @@ void printListInstr(List_Instr* list){
         printInstr(list->head);
         return;
     }
+    //printf("head  %d\n",list->head);
     printInstr(list->head);
+    //printf("tail  %d\n",list->tail);
     printListInstr(list->tail);
     return;
 }
 
-
+/*
 int main(int argc, char** argv) {
     argc--;
     argv++;
@@ -295,9 +307,27 @@ int main(int argc, char** argv) {
         }
     }
     if(yyparse()==0) {
-        List_Instr* list = compile_Expr(root);
-        printListInstr(list);
+        printf("%s\n",root->kind);
+        //List_Instr* list = compile_Expr(root);
+        Expr* expr1 = ast_integer(1);
+        Expr* expr2 = ast_integer(2);
+        Expr* res = ast_operation(PLUS,expr1,expr2);
+        List_Instr* list = compile_Expr(res);
+        printf("fez compile\n");
+        //printListInstr(list);
         printf("SYSCALL\n");
     }
+    return 0;
+}*/
+
+int main() {
+    Expr* expr1 = ast_integer(1);
+    Expr* expr2 = ast_integer(2);
+    Expr* res = ast_operation(PLUS,expr1,expr2);
+    char* r = create_register();
+    List_Instr* list = compile_Expr(res,r);
+    printf("SYSCALL\n");
+    printListInstr(list);
+
     return 0;
 }
