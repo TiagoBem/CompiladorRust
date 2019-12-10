@@ -323,7 +323,7 @@ void printListInstr(List_Instr* list){
     return;
 }
 
-/*
+
 int main(int argc, char** argv) {
     argc--;
     argv++;
@@ -335,19 +335,18 @@ int main(int argc, char** argv) {
         }
     }
     if(yyparse()==0) {
-        printf("%s\n",root->kind);
         //List_Instr* list = compile_Expr(root);
-        Expr* expr1 = ast_integer(1);
+        /*Expr* expr1 = ast_integer(1);
         Expr* expr2 = ast_integer(2);
-        Expr* res = ast_operation(PLUS,expr1,expr2);
-        List_Instr* list = compile_Expr(res);
-        printf("fez compile\n");
-        //printListInstr(list);
+        Expr* res = ast_operation(PLUS,expr1,expr2);*/
+        char* r = create_register();
+        List_Instr* list = compile_Expr(root,r);
         printf("SYSCALL\n");
+        printListInstr(list);
     }
     return 0;
-}*/
-
+}
+/*
 int main() {
     Expr* expr1 = ast_integer(2);
     Expr* expr2 = ast_integer(5);
@@ -369,4 +368,4 @@ int main() {
     printListInstr(list2);
 
     return 0;
-}
+}*/
