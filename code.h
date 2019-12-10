@@ -1,4 +1,4 @@
-typedef enum {NUM,VARIAB,ADI,SUB,MUL,DIVI,GOTO,LAB,TRU,FALS,EQU,N_EQU,LES,BIG,LEQ,BEQ} iKind;
+typedef enum {NUM,VARIAB,ADI,SUB,MUL,DIVI,LAB,TRU,FALS,EQU,N_EQU,LES,BIG,LEQ,BEQ} iKind;
 
 struct _Atom {
     enum {
@@ -11,6 +11,7 @@ struct _Atom {
 
 struct _Label {
     char* var;
+    struct _List_Instr* list_instr;
 };
 
 struct  _Instr{
@@ -31,12 +32,10 @@ struct  _Instr{
         struct {
             char* var;
             struct _Atom* atom;
+            char* TorF;
             struct _Label* label1;
             struct _Label* label2;
         } _if_else;
-        struct {
-            struct _Label* label;
-        } _lab;
     } args;
 };
 
@@ -58,8 +57,10 @@ Instr* mkInstrOneAtom(iKind kind, char* var, Atom* atom);
 Instr* mkInstrTwoAtom(iKind kind, char* var, Atom* atom1, Atom* atom2);
 Instr* mkInstrGoto(iKind, Label* label);
 Instr* mkInstrIfElse(iKind kind, char* var, Atom* atom, Label* label1, Label* label2);
-Instr* mkInstrLab(iKind kind, Label* label);
+Instr* mkInstrTrueFalse(iKind kind, char* var, char* TorF, Label* label1, Label* label2);
 Instr* head(List_Instr* list);
+
+Label* mkLab(char* var, List_Instr* list);
 
 List_Instr* tail(List_Instr* l);
 List_Instr* mkList(Instr* code, List_Instr* l);

@@ -15,7 +15,7 @@ char* create_register(){
 }
 
 List_Instr* compile_cmdlist(CmdList* cmd_list);
-List_Instr* compile_BoolExpr(BoolExpr* boolexpr);
+List_Instr* compile_BoolExpr(BoolExpr* boolexpr, char* r, Label* labelTrue, Label* labelFalse);
 List_Instr* compile_Cmd(Cmd* cmd);
 List_Instr* compile_Expr(Expr* expr,char* r);
 
@@ -68,10 +68,20 @@ Instr* mkInstrIfElse(iKind kind, char* var, Atom* atom, Label* label1, Label* la
     return node;
 }
 
-Instr* mkInstrLab(iKind kind, Label* label) {
+Instr* mkInstrTrueFalse(iKind kind, char* var, char* TorF, Label* label1, Label* label2) {
     Instr* node = (Instr*) malloc(sizeof(Instr));
     node->kind = kind;
-    node->args._lab.label = label;
+    node->args._if_else.var = strdup(var);
+    node->args._if_else.TorF = strdup(TorF);
+    node->args._if_else.label1 = label1;
+    node->args._if_else.label2 = label2;
+    return node;
+}
+
+Label* mkLab(char* var, List_Instr* list) {
+    Label* node = (Label*) malloc(sizeof(Label));
+    node->var = var;
+    node->list_instr = list;
     return node;
 }
 
@@ -107,47 +117,66 @@ List_Instr* compile_cmdlist(CmdList* cmd_list) {
     }
     return node;
 }
+*/
 
-List_Instr* compile_BoolExpr(BoolExpr* boolexpr) {
+List_Instr* compile_BoolExpr(BoolExpr* boolexpr, char* r, Label* labelTrue, Label* labelFalse) {
     List_Instr* node = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp1 = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp2 = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp3 = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp4 = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp5 = (List_Instr*) malloc(sizeof(List_Instr));    
+    List_Instr* temp6 = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp7 = (List_Instr*) malloc(sizeof(List_Instr));
+    char* r1;
+    char* r2;
     switch(boolexpr->kind){
         case E_TRUEORFALSE:
             switch (boolexpr->attr.bool_value) {
                 case 1:
-                    node = mkList(mkInstrOneAtom(TRU,mkAtomInt(boolexpr->attr.bool_value)), NULL);
+                    node = mkList(mkInstrOneAtom(TRU,r,mkAtomInt(boolexpr->attr.bool_value)), NULL);
                     break;
                 case 0:
-                    node = mkList(mkInstrOneAtom(FALS,mkAtomInt(boolexpr->attr.bool_value)), NULL);
+                    node = mkList(mkInstrOneAtom(FALS,r,mkAtomInt(boolexpr->attr.bool_value)), NULL);
                     break;
             }
         case E_BOOL_OPERATION:
-            node = compile_Expr(boolexpr->attr.op.left);
-            node = append(node, compile_Expr(boolexpr->attr.op.right));
+            r1 = create_register();
+            temp1 = compile_Expr(boolexpr->attr.op.left,r1);
+            r2 = create_register();
+            temp2 = compile_Expr(boolexpr->attr.op.right,r2);
+            temp3 = append(temp1,temp2);
+            r1 = temp1->head->args._one_var.var;
+            r2 = temp2->head->args._one_var.var;
             switch (boolexpr->attr.op.boolOp) {
                 case EQUAL:
-                    node = append(node, mkList(mkInstrTwoAtom(EQU,0), NULL));
+                    temp4 = append(temp3, mkList(mkInstrTwoAtom(EQU,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
                 case NOT_EQUAL:
-                    node = append(node, mkList(mkInstrTwoAtom(N_EQU,0), NULL));
+                    temp4 = append(temp3, mkList(mkInstrTwoAtom(N_EQU,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
                 case LESSER:
-                    node = append(node, mkList(mkInstrTwoAtom(LES,0), NULL));
+                    temp4 = append(temp3, mkList(mkInstrTwoAtom(LES,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
                 case BIGGER:
-                    node = append(node, mkList(mkInstrTwoAtom(BIG,0), NULL));
+                    temp4 = append(temp3, mkList(mkInstrTwoAtom(BIG,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
                 case LESSER_EQUAL:
-                    node = append(node, mkList(mkInstrTwoAtom(LEQ,0), NULL));
+                    temp4 = append(temp3, mkList(mkInstrTwoAtom(LEQ,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
                 case BIGGER_EQUAL:
-                    node = append(node, mkList(mkInstrOneAtom(BEQ,0), NULL));
+                    temp4 = append(temp3, mkList(mkInstrTwoAtom(BEQ,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
             }
     }
+    temp5 = mkList(mkInstrGoto(LAB,labelTrue),NULL);
+    temp6 = mkList(mkInstrGoto(LAB,labelFalse),NULL);
+    temp7 = append(temp5,temp6);
+    node = append(temp4,temp7);
     return node;
 }
 
-
+/*
 List_Instr* compile_Cmd(Cmd* cmd) {
     List_Instr* node = (List_Instr*) malloc(sizeof(List_Instr));
     switch(cmd->kind){
@@ -225,36 +254,32 @@ void printInstr(Instr* inst){
     //printf("%d\n",inst->kind);
   switch(inst->kind){
     case NUM:
-        //printf("NUM");
         printf("%s",inst->args._one_var.var);
         printf(" := %d\n", inst->args._one_var.atom->num);
     break;
     case VARIAB:
-        //printf("VARIAB");
-        printf("%s\n", inst->args._one_var.var);
+        printf("%s", inst->args._one_var.var);
         printf(" := %s\n", inst->args._one_var.atom->var);
         break;
     case ADI:
-        //printf("ADI\n");
-        //printf("%d\n",inst->args._two_var.atom1->num);
-        //printf("%d\n",inst->args._two_var.atom2->num);
         printf("%s",inst->args._two_var.var);
         printf(" := %s + %s\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case SUB:
-        printf("SUB\n");
+        printf("%s",inst->args._two_var.var);
+        printf(" := %s - %s\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case MUL:
-        printf("MUL\n");
+        printf("%s",inst->args._two_var.var);
+        printf(" := %s * %s\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case DIVI:
-        printf("DIVI\n");
-        break;
-    case GOTO:
-        printf("GOTO\n");
+        printf("%s",inst->args._two_var.var);
+        printf(" := %s / %s\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case LAB:
-        printf("LAB\n");
+        printf("Label %s:\n",inst->args._goto.label->var);
+        printListInstr(inst->args._goto.label->list_instr);
         break;
     case TRU:
         printf("TRU\n");
@@ -263,22 +288,22 @@ void printInstr(Instr* inst){
         printf("FALS\n");
         break;
     case EQU:
-        printf("EQU\n");
+        printf("if %s == %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case N_EQU:
-        printf("N_EQU\n");
+        printf("if %s != %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case LES:
-        printf("LES\n");
+        printf("if %s < %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case BIG:
-        printf("BIG\n");
+        printf("if %s > %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case LEQ:
-        printf("LEQ\n");
+        printf("if %s <= %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case BEQ:
-        printf("BEQ\n");
+        printf("if %s >= %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     default: printf("Não existe\n");
   }
@@ -324,13 +349,24 @@ int main(int argc, char** argv) {
 }*/
 
 int main() {
-    Expr* expr1 = ast_integer(1);
-    Expr* expr2 = ast_integer(2);
-    Expr* res = ast_operation(PLUS,expr1,expr2);
-    char* r = create_register();
-    List_Instr* list = compile_Expr(res,r);
+    Expr* expr1 = ast_integer(2);
+    Expr* expr2 = ast_integer(5);
+    Expr* expr3 = ast_operation(MULT,expr1,expr2);
+    char* var = (char*) malloc(sizeof(char));
+    var = "x";
+    Expr* expr4 = ast_var(var);
+    Expr* res = ast_operation(MINUS,expr4,expr3);
+    BoolExpr* be = ast_BoolOperation(EQUAL,expr1,expr2);
+    char* r1 = create_register();
+    List_Instr* list1 = compile_Expr(res,r1);
+    char* r2 = create_register();
+    char* a = "a";
+    Label* l1 = mkLab(a,list1);
+    char* b = "b";
+    Label* l2 = mkLab(b,list1);
+    List_Instr* list2 = compile_BoolExpr(be,r2,l1,l2); 
     printf("SYSCALL\n");
-    printListInstr(list);
+    printListInstr(list2);
 
     return 0;
 }
