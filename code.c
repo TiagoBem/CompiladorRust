@@ -6,11 +6,10 @@
 #include "parser.h"
 
 int regist=0;
-char buffer[12];
 
 char* create_register(){
-    sprintf(buffer,"%s%d","t",regist);
-    char* var = buffer;
+    char* var = (char*) malloc(sizeof(char));
+    sprintf(var,"%s%d","t",regist);
     regist++;
     return var;
 }
@@ -30,7 +29,7 @@ Atom* mkAtomInt(int n) {
 Atom* mkAtomChar(char* c) {
     Atom* node = (Atom*) malloc(sizeof(Atom));
     node->kind = A_VAR;
-    node->var = c;
+    node->var = strdup(c);
     return node;
 }
 
@@ -38,7 +37,7 @@ Atom* mkAtomChar(char* c) {
 Instr* mkInstrOneAtom(iKind kind, char* var, Atom* atom) {
     Instr* node = (Instr*) malloc(sizeof(Instr));
     node->kind = kind;
-    node->args._one_var.var = var;
+    node->args._one_var.var = strdup(var);
     node->args._one_var.atom = atom;
     return node;
 }
@@ -46,7 +45,7 @@ Instr* mkInstrOneAtom(iKind kind, char* var, Atom* atom) {
 Instr* mkInstrTwoAtom(iKind kind, char* var, Atom* atom1, Atom* atom2) {
     Instr* node = (Instr*) malloc(sizeof(Instr));
     node->kind = kind;
-    node->args._two_var.var = var;
+    node->args._two_var.var = strdup(var);
     node->args._two_var.atom1 = atom1;
     node->args._two_var.atom2 = atom2;
     return node;
@@ -62,7 +61,7 @@ Instr* mkInstrGoto(iKind kind, Label* label) {
 Instr* mkInstrIfElse(iKind kind, char* var, Atom* atom, Label* label1, Label* label2) {
     Instr* node = (Instr*) malloc(sizeof(Instr));
     node->kind = kind;
-    node->args._if_else.var = var;
+    node->args._if_else.var = strdup(var);
     node->args._if_else.atom = atom;
     node->args._if_else.label1 = label1;
     node->args._if_else.label2 = label2;
@@ -174,6 +173,9 @@ List_Instr* compile_Cmd(Cmd* cmd) {
 
 List_Instr* compile_Expr(Expr* expr, char* r) {
     List_Instr* node = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp1 = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp2 = (List_Instr*) malloc(sizeof(List_Instr));
+    List_Instr* temp3 = (List_Instr*) malloc(sizeof(List_Instr));
     char* r1;
     char* r2;
     printf("%s\n",r);
@@ -187,25 +189,26 @@ List_Instr* compile_Expr(Expr* expr, char* r) {
         case E_OPERATION:
             r1 = create_register();
             //printf("left %d\n",expr->attr.op.left->attr.value);
-            node = compile_Expr(expr->attr.op.left,r1);
+            temp1 = compile_Expr(expr->attr.op.left,r1);
             r2 = create_register();
             //printf("right %d\n",expr->attr.op.right->attr.value);
-            node = append(node, compile_Expr(expr->attr.op.right,r2));
+            temp2 = compile_Expr(expr->attr.op.right,r2);
+            temp3 = append(temp1,temp2);
             printf("reg %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.var);
             printf("val atom1 %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.atom1->var);
             printf("val atom2 %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.atom2->var);
             switch(expr->attr.op.operator){
                 case PLUS:
-                    node = append(node, mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
+                    node = append(temp3, mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
                 case MINUS:
-                    node = append(node, mkList(mkInstrTwoAtom(SUB,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
+                    node = append(temp3, mkList(mkInstrTwoAtom(SUB,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
                 case MULT:
-                    node = append(node, mkList(mkInstrTwoAtom(MUL,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
+                    node = append(temp3, mkList(mkInstrTwoAtom(MUL,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
                 case DIV:
-                    node = append(node, mkList(mkInstrTwoAtom(DIVI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
+                    node = append(temp3, mkList(mkInstrTwoAtom(DIVI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
                     break;
             }
     }
@@ -223,7 +226,7 @@ void printInstr(Instr* inst){
   switch(inst->kind){
     case NUM:
         //printf("NUM");
-        printf("%s",inst->args._two_var.var);
+        printf("%s",inst->args._one_var.var);
         printf(" := %d\n", inst->args._one_var.atom->num);
     break;
     case VARIAB:
