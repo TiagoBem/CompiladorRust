@@ -72,11 +72,11 @@ extern int yyline;
 extern char* yytext;
 extern FILE* yyin;
 extern void yyerror(const char* msg);
-Expr* root;
+CmdList* root;
 }
 
 %%
-program: MAIN O_PAR C_PAR O_BRK expr C_BRK { root = $5; }
+program: MAIN O_PAR C_PAR O_BRK cmd_list C_BRK { root = $5; }
 
 cmd_list:
   {$$ = NULL; }

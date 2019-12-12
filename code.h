@@ -1,4 +1,4 @@
-typedef enum {NUM,VARIAB,ADI,SUB,MUL,DIVI,LAB,TRU,FALS,EQU,N_EQU,LES,BIG,LEQ,BEQ} iKind;
+typedef enum {NUM,VARIAB,ADI,SUB,MUL,DIVI,LAB,GOTO,TRU,FALS,EQU,N_EQU,LES,BIG,LEQ,BEQ} iKind;
 
 struct _Atom {
     enum {

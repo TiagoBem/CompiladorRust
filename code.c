@@ -14,9 +14,9 @@ char* create_register(){
     return var;
 }
 
-List_Instr* compile_cmdlist(CmdList* cmd_list);
+List_Instr* compile_cmdlist(CmdList* cmd_list,char* r);
 List_Instr* compile_BoolExpr(BoolExpr* boolexpr, char* r, Label* labelTrue, Label* labelFalse);
-List_Instr* compile_Cmd(Cmd* cmd);
+List_Instr* compile_Cmd(Cmd* cmd,char* r);
 List_Instr* compile_Expr(Expr* expr,char* r);
 
 Atom* mkAtomInt(int n) {
@@ -107,17 +107,18 @@ List_Instr* append(List_Instr* l1, List_Instr* l2) {
     return mkList(head(l1), append(tail(l1), l2));
 }
 
-/*
-List_Instr* compile_cmdlist(CmdList* cmd_list) {
+
+List_Instr* compile_cmdlist(CmdList* cmd_list,char* r) {
     List_Instr* node = (List_Instr*) malloc(sizeof(List_Instr));
-    node = compile_Cmd(cmd_list->cmd);
+    node = compile_Cmd(cmd_list->cmd,r);
     while(cmd_list->cmd_list!=NULL){
         cmd_list = cmd_list->cmd_list;
-        node = append(node, compile_Cmd(cmd_list->cmd));
+        char* r1 = create_register();
+        node = append(node, compile_Cmd(cmd_list->cmd,r1));
     }
     return node;
 }
-*/
+
 
 List_Instr* compile_BoolExpr(BoolExpr* boolexpr, char* r, Label* labelTrue, Label* labelFalse) {
     List_Instr* node = (List_Instr*) malloc(sizeof(List_Instr));
@@ -169,25 +170,46 @@ List_Instr* compile_BoolExpr(BoolExpr* boolexpr, char* r, Label* labelTrue, Labe
                     break;
             }
     }
-    temp5 = mkList(mkInstrGoto(LAB,labelTrue),NULL);
-    temp6 = mkList(mkInstrGoto(LAB,labelFalse),NULL);
+    temp5=NULL;
+    temp6=NULL;
+    temp7=NULL;
+    if(labelTrue!=NULL)
+        temp5 = mkList(mkInstrGoto(LAB,labelTrue),NULL);
+    if(labelFalse!=NULL)
+        temp6 = mkList(mkInstrGoto(GOTO,labelFalse),NULL);
     temp7 = append(temp5,temp6);
     node = append(temp4,temp7);
     return node;
 }
 
-/*
-List_Instr* compile_Cmd(Cmd* cmd) {
+
+int flag; // 0 for if, 1 for while
+List_Instr* compile_Cmd(Cmd* cmd,char* r) {
     List_Instr* node = (List_Instr*) malloc(sizeof(List_Instr));
+    char* r1;
+    char* r2;
+    char* r3;
+    char* r4;
     switch(cmd->kind){
         case E_ATRIB:
-            break;
+            return compile_Expr(cmd->attr.atrib.value,r);
         case E_IF:
-            break;
+            r1 = create_register();
+            r2 = create_register();
+            flag=0;
+            return compile_BoolExpr(cmd->attr._if.boolExpr,r,mkLab(r1,compile_cmdlist(cmd->attr._if.cmd_list,r2)),NULL);
         case E_IFELSE:
-            break;
+            r1 = create_register();
+            r2 = create_register();
+            r3 = create_register();
+            r4 = create_register();
+            flag=0;
+            return compile_BoolExpr(cmd->attr._ifelse.boolExpr,r,mkLab(r1,compile_cmdlist(cmd->attr._ifelse.cmd_list1,r3)),mkLab(r2,compile_cmdlist(cmd->attr._ifelse.cmd_list2,r4)));
         case E_WHILE:
-            break;
+            r1 = create_register();
+            r2 = create_register();
+            flag=1;
+            return compile_BoolExpr(cmd->attr._while.boolExpr,r,mkLab(r1,compile_cmdlist(cmd->attr._while.cmd_list,r2)),NULL);
         case E_PRINT:
             break;
         case E_PRINTVAR:
@@ -198,7 +220,7 @@ List_Instr* compile_Cmd(Cmd* cmd) {
             yyerror("Unknown command!\n");
     }
     return node;
-}*/
+}
 
 List_Instr* compile_Expr(Expr* expr, char* r) {
     List_Instr* node = (List_Instr*) malloc(sizeof(List_Instr));
@@ -207,7 +229,6 @@ List_Instr* compile_Expr(Expr* expr, char* r) {
     List_Instr* temp3 = (List_Instr*) malloc(sizeof(List_Instr));
     char* r1;
     char* r2;
-    printf("%s\n",r);
     switch(expr->kind){
         case E_INTEGER:
             node = mkList(mkInstrOneAtom(NUM,r,mkAtomInt(expr->attr.value)),NULL);
@@ -217,15 +238,10 @@ List_Instr* compile_Expr(Expr* expr, char* r) {
             break;
         case E_OPERATION:
             r1 = create_register();
-            //printf("left %d\n",expr->attr.op.left->attr.value);
             temp1 = compile_Expr(expr->attr.op.left,r1);
             r2 = create_register();
-            //printf("right %d\n",expr->attr.op.right->attr.value);
             temp2 = compile_Expr(expr->attr.op.right,r2);
             temp3 = append(temp1,temp2);
-            printf("reg %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.var);
-            printf("val atom1 %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.atom1->var);
-            printf("val atom2 %s\n",(mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL))->head->args._two_var.atom2->var);
             switch(expr->attr.op.operator){
                 case PLUS:
                     node = append(temp3, mkList(mkInstrTwoAtom(ADI,r,mkAtomChar(r1),mkAtomChar(r2)), NULL));
@@ -241,17 +257,11 @@ List_Instr* compile_Expr(Expr* expr, char* r) {
                     break;
             }
     }
-    printf("registo var  %s\n",node->head->args._two_var.var);
-    if(node->head->args._two_var.atom1 != NULL)
-        printf("registo atom1 %d\n",node->head->args._two_var.atom1->num);
-    if(node->head->args._two_var.atom2 != NULL)
-        printf("registo atom2 %d\n",node->head->args._two_var.atom2->num);
     return node;
 }
 
 
 void printInstr(Instr* inst){
-    //printf("%d\n",inst->kind);
   switch(inst->kind){
     case NUM:
         printf("%s",inst->args._one_var.var);
@@ -278,6 +288,10 @@ void printInstr(Instr* inst){
         printf(" := %s / %s\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case LAB:
+        printf("\n");
+        printListInstr(inst->args._goto.label->list_instr);
+        break;
+    case GOTO:
         printf("Label %s:\n",inst->args._goto.label->var);
         printListInstr(inst->args._goto.label->list_instr);
         break;
@@ -288,22 +302,40 @@ void printInstr(Instr* inst){
         printf("FALS\n");
         break;
     case EQU:
-        printf("if %s == %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==1)
+            printf("loop %s == %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==0)
+            printf("if %s == %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case N_EQU:
-        printf("if %s != %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==1)
+            printf("loop %s != %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==0)
+            printf("if %s != %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case LES:
-        printf("if %s < %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==1)
+            printf("loop %s < %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==0)
+            printf("if %s < %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case BIG:
-        printf("if %s > %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==1)
+            printf("loop %s > %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==0)
+            printf("if %s > %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case LEQ:
-        printf("if %s <= %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==1)
+            printf("loop %s <= %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==0)
+            printf("if %s <= %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     case BEQ:
-        printf("if %s >= %s go to\n", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==1)
+            printf("loop %s >= %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
+        if(flag==0)
+            printf("if %s >= %s ", inst->args._two_var.atom1->var, inst->args._two_var.atom2->var);
         break;
     default: printf("Não existe\n");
   }
@@ -316,9 +348,7 @@ void printListInstr(List_Instr* list){
         printInstr(list->head);
         return;
     }
-    //printf("head  %d\n",list->head);
     printInstr(list->head);
-    //printf("tail  %d\n",list->tail);
     printListInstr(list->tail);
     return;
 }
@@ -335,12 +365,8 @@ int main(int argc, char** argv) {
         }
     }
     if(yyparse()==0) {
-        //List_Instr* list = compile_Expr(root);
-        /*Expr* expr1 = ast_integer(1);
-        Expr* expr2 = ast_integer(2);
-        Expr* res = ast_operation(PLUS,expr1,expr2);*/
         char* r = create_register();
-        List_Instr* list = compile_Expr(root,r);
+        List_Instr* list = compile_cmdlist(root,r);
         printf("SYSCALL\n");
         printListInstr(list);
     }
